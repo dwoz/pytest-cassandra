@@ -32,5 +32,6 @@ setup(
     install_requires=[
         'netifaces',
         'psutil',
+        'cassandra-driver',
     ]
 )
