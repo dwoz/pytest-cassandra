@@ -1,0 +1,4 @@
+*.pyc
+
+__pycache__/
+pytest_cassandra.egg-info/
