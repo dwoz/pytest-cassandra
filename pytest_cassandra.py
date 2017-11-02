@@ -16,6 +16,7 @@ from cassandra.auth import PlainTextAuthProvider
 
 logger = logging.getLogger()
 
+
 CCM_KILLALL=False
 IP_PREFIX='127.0.5.'
 NODES='3'
@@ -368,6 +369,9 @@ class CCMCluster(object):
             time.sleep(60)
 
 
+cluster = CCMCluster(manage_interfaces=False)
+
+
 def pytest_addoption(parser):
     parser.addoption(
         "--with-cassandra",
@@ -377,7 +381,11 @@ def pytest_addoption(parser):
     )
 
 
-ccm_cluster = CCMCluster(manage_interfaces=False)
+def pytest_configure(config):
+    cluster.name = config.inicfg.get('cassandra-name', cluster.name)
+    cluster.killall = config.inicfg.get('cassandra-killall', cluster.killall)
+    cluster.ip_prefix = config.inicfg.get('cassandra-ip-prefix', cluster.ip_prefix)
+    cluster.nodes = config.inicfg.get('cassandra-nodes', cluster.nodes)
 
 
 @pytest.yield_fixture(scope='session')
@@ -387,9 +395,9 @@ def ccm(pytestconfig):
     capmanager.suspendcapture()
     try:
         logger.info("Setting up cassandra cluster: %s", name)
-        ccm_cluster.setup(name)
+        cluster.setup(name)
         logger.info("Cassandra cluster setup complete")
     finally:
         capmanager.resumecapture()
-    yield ccm_cluster
-    ccm_cluster.teardown()
+    yield cluster
+    cluster.teardown()
