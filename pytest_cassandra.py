@@ -18,7 +18,7 @@ logger = logging.getLogger()
 
 CCM_KILLALL=False
 IP_PREFIX='127.0.5.'
-NUM_NODES=3
+NODES='3'
 
 
 def _loopback_interfaces(prefix='lo'):
@@ -155,7 +155,7 @@ class CCMCluster(object):
     '''
 
     def __init__(
-            self, name='', nodes=NUM_NODES, initialized=False,
+            self, name='', nodes=NODES, initialized=False,
             manage_cluster=False, debug=True, manage_interfaces=False,
             killall=CCM_KILLALL, ip_prefix=IP_PREFIX, platforms=platforms):
         self.name = name
@@ -169,9 +169,17 @@ class CCMCluster(object):
         self.platforms = platforms
 
     @property
+    def num_nodes(self):
+        nodes = 0
+        for dc in self.nodes.split(':'):
+            nodes += int(dc)
+        return nodes
+
+
+    @property
     def hosts_cfg(self):
         hosts = []
-        for x in range(self.nodes):
+        for x in range(self.num_nodes):
             hosts.append(self._mkaddr(x))
         return ', '.join(hosts)
 
@@ -199,7 +207,7 @@ class CCMCluster(object):
     def _check_loopbacks(self):
         loopbacks = _loopbacks()
         missing = []
-        for x in range(self.nodes):
+        for x in range(self.num_nodes):
             iface = self._mkiface(x)
             ip_addr = self._mkaddr(x)
             if (iface, ip_addr) not in loopbacks:
@@ -219,7 +227,7 @@ class CCMCluster(object):
 
     def _setup_loopbacks(self):
         loopbacks = _loopbacks()
-        for x in range(self.nodes):
+        for x in range(self.num_nodes):
             iface = self._mkiface(x)
             ip_addr = self._mkaddr(x)
             if (iface, ip_addr) not in loopbacks:
@@ -229,7 +237,7 @@ class CCMCluster(object):
                 self._add_ip_addr(iface, ip_addr)
         loopbacks = _loopbacks()
         missing = []
-        for x in range(self.nodes):
+        for x in range(self.num_nodes):
             iface = self._mkiface(x)
             ip_addr = self._mkaddr(x)
             if (iface, ip_addr) not in loopbacks:
@@ -239,8 +247,8 @@ class CCMCluster(object):
             sys.stderr.write("Missing network addresses: {}\n".format(', '.join(missing)))
             raise Exception("CCM setup exception: missing address")
 
-    def _teardown_loopbacks(self, nodes=NUM_NODES):
-        for x in range(nodes):
+    def _teardown_loopbacks(self):
+        for x in range(self.num_nodes):
             iface = self._mkiface(x)
             ip_addr = self._mkaddr(x)
             self._rm_ip_addr(iface, ip_addr)
@@ -325,8 +333,8 @@ class CCMCluster(object):
         if not self.name:
             raise Exception("Set name before calling create cluster")
         popenargs = [
-            'ccm create {} --nodes 3 -v 3.7 -i \'{}\' --start --no-switch'.format(
-                self.name, self.ip_prefix
+            'ccm create {} --nodes {} -v 3.7 -i \'{}\' --start --no-switch'.format(
+                self.name, self.nodes, self.ip_prefix
             )
         ]
         popenkwargs = dict(stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
