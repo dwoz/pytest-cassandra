@@ -9,10 +9,6 @@ import netifaces
 
 import pytest
 
-from cassandra.query import SimpleStatement, BatchStatement
-from cassandra.cluster import Cluster
-from cassandra.policies import DCAwareRoundRobinPolicy, RoundRobinPolicy, TokenAwarePolicy
-from cassandra.auth import PlainTextAuthProvider
 
 logger = logging.getLogger()
 
