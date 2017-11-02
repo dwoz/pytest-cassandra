@@ -1,6 +1,7 @@
 import logging
 import subprocess
 import sys
+import tempfile
 import time
 import psutil
 import platform
@@ -300,6 +301,7 @@ class CCMCluster(object):
                 except psutil.AccessDenied as e:
                     logger.debug('Unable to access commandline of java process')
             if self._cmdline_matches(cmdline):
+                print("process {}".format(cmdline))
                 yield p
 
     def _cmdline_matches(self, cmdline):
@@ -322,7 +324,11 @@ class CCMCluster(object):
     def _create_cluster(self):
         if not self.name:
             raise Exception("Set name before calling create cluster")
-        popenargs = ['ccm create {} --nodes 3 -v 3.7 -i \'{}\' --start --no-switch'.format(self.name, self.ip_prefix)]
+        popenargs = [
+            'ccm create {} --nodes 3 -v 3.7 -i \'{}\' --start --no-switch'.format(
+                self.name, self.ip_prefix
+            )
+        ]
         popenkwargs = dict(stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
         stdout, stderr, e = None, None, None
         ret = 0
@@ -351,7 +357,8 @@ class CCMCluster(object):
         if ret != 0:
             raise Exception("Problem removing test cluster")
         while len(list(self._cassandra_processes())) > 0:
-            time.sleep(.5)
+            time.sleep(60)
+
 
 def pytest_addoption(parser):
     parser.addoption(
@@ -366,85 +373,15 @@ ccm_cluster = CCMCluster(manage_interfaces=False)
 
 
 @pytest.yield_fixture(scope='session')
-def ccm(test_session_name, pytestconfig):
+def ccm(pytestconfig):
+    name = tempfile.mkdtemp(suffix='-cassandra').split('/')[-1]
     capmanager = pytestconfig.pluginmanager.getplugin('capturemanager')
     capmanager.suspendcapture()
     try:
-        logger.info("Setting up cassandra cluster")
-        ccm_cluster.setup(test_session_name)
+        logger.info("Setting up cassandra cluster: %s", name)
+        ccm_cluster.setup(name)
         logger.info("Cassandra cluster setup complete")
     finally:
         capmanager.resumecapture()
     yield ccm_cluster
     ccm_cluster.teardown()
-
-
-@pytest.yield_fixture(scope='session')
-def cassandra_cluster(ccm):
-    yield setup_cluster(ccm.hosts_cfg)
-
-
-@pytest.fixture(scope='session')
-def keyspace():
-    return 'auth_test'
-
-
-@pytest.yield_fixture(scope='session')
-def cassandra_session(keyspace, cassandra_cluster):
-    from auth.persist.cassandra import setup_session, create_keyspace, create_tables
-
-    session = cassandra_cluster.connect()
-    create_keyspace(session, keyspace)
-    config = {'CASSANDRA_KEYSPACE': keyspace}
-    session = setup_session(config, cassandra_cluster)
-    create_tables(session)
-    yield session
-
-def setup_session(keyspace, cluster=None):
-    session = cluster.connect()
-    session.set_keyspace(config['CASSANDRA_KEYSPACE'])
-    return session
-
-
-def create_keyspace(
-        session, keyspace, drop=False,
-        replication="{'class': 'SimpleStrategy', 'replication_factor': 3}",
-        timeout=5000):
-    """
-    Create a keyspace
-    """
-    if drop:
-        session.execute("DROP KEYSPACE {};".format(keyspace), timeout=timeout)
-    try:
-        session.execute("CREATE KEYSPACE {} WITH replication = {};".format(
-                keyspace, replication
-            ),
-            timeout=timeout
-        )
-    except AlreadyExists:
-        sys.stderr.write("Keyspace {} already exits.\n".format(keyspace))
-        sys.stderr.flush()
-
-
-def setup_cluster(hosts, port=9042, datacenter='', username='cassandra',
-        password='cassandra', controll_connection_timeout=60):
-    if datacenter:
-        cluster = Cluster(
-            cassandra_hosts,
-            load_balancing_policy=TokenAwarePolicy(
-                DCAwareRoundRobinPolicy(
-                    local_dc=datacenter
-                )
-            ),
-            port=port,
-            auth_provider=auth_provider,
-        )
-    else:
-        cluster = Cluster(
-            cassandra_hosts,
-            load_balancing_policy=TokenAwarePolicy(RoundRobinPolicy()),
-            port=port,
-            auth_provider=auth_provider,
-        )
-    cluster.control_connection_timeout = control_connection_timeout
-    return cluster
