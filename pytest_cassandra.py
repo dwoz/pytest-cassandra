@@ -362,10 +362,10 @@ class CCMCluster(object):
         if ret != 0:
             raise Exception("Problem removing test cluster")
         while len(list(self._cassandra_processes())) > 0:
-            time.sleep(60)
+            time.sleep(.5)
 
 
-cluster = CCMCluster(manage_interfaces=False)
+cluster = CCMCluster()
 
 
 def pytest_addoption(parser):
