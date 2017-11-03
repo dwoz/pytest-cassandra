@@ -174,13 +174,16 @@ class CCMCluster(object):
             nodes += int(dc)
         return nodes
 
-
     @property
     def hosts_cfg(self):
+        return ', '.join(self.hosts)
+
+    @property
+    def hosts(self):
         hosts = []
         for x in range(self.num_nodes):
             hosts.append(self._mkaddr(x))
-        return ', '.join(hosts)
+        return hosts
 
     @property
     def _platform(self):

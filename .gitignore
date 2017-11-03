@@ -2,3 +2,6 @@
 
 __pycache__/
 pytest_cassandra.egg-info/
+.cache/
+
+venv
