@@ -154,7 +154,8 @@ class CCMCluster(object):
     def __init__(
             self, name='', nodes=NODES, initialized=False,
             manage_cluster=False, debug=True, manage_interfaces=False,
-            killall=CCM_KILLALL, ip_prefix=IP_PREFIX, platforms=platforms):
+            killall=CCM_KILLALL, ip_prefix=IP_PREFIX, platforms=platforms,
+            pluginmanager=None):
         self.name = name
         self.nodes = nodes
         self.debug = debug
@@ -164,6 +165,7 @@ class CCMCluster(object):
         self.killall = killall
         self.ip_prefix = ip_prefix
         self.platforms = platforms
+        self.pluginmanager = pluginmanager
 
     @property
     def num_nodes(self):
@@ -272,7 +274,7 @@ class CCMCluster(object):
             if self.manage_interfaces:
                 self._teardown_loopbacks()
         finally:
-            self.initialized = True
+            self.initialized = False
             self._check_state()
 
     def _check_state(self):
@@ -364,6 +366,24 @@ class CCMCluster(object):
         while len(list(self._cassandra_processes())) > 0:
             time.sleep(.5)
 
+    def __enter__(self):
+        name = tempfile.mkdtemp(suffix='-cassandra').split('/')[-1]
+        if self.pluginmanager:
+            capmanager = self.pluginmanager.getplugin('capturemanager')
+            capmanager.suspendcapture()
+        else:
+            capmanager = None
+        try:
+            logger.info("Setting up cassandra cluster: %s", name)
+            self.setup(name)
+            logger.info("Cassandra cluster setup complete")
+        finally:
+            if capmanager:
+                capmanager.resumecapture()
+        return self
+
+    def __exit__(self, *args, **kwargs):
+        self.teardown()
 
 cluster = CCMCluster()
 
@@ -382,18 +402,22 @@ def pytest_configure(config):
     cluster.killall = config.inicfg.get('cassandra-killall', cluster.killall)
     cluster.ip_prefix = config.inicfg.get('cassandra-ip-prefix', cluster.ip_prefix)
     cluster.nodes = config.inicfg.get('cassandra-nodes', cluster.nodes)
+    cluster.pluginmanager = config.pluginmanager
+
+
+@pytest.yield_fixture()
+def cluster_fixture():
+    with cluster as c:
+        yield c
 
 
 @pytest.yield_fixture(scope='session')
-def ccm(pytestconfig):
-    name = tempfile.mkdtemp(suffix='-cassandra').split('/')[-1]
-    capmanager = pytestconfig.pluginmanager.getplugin('capturemanager')
-    capmanager.suspendcapture()
-    try:
-        logger.info("Setting up cassandra cluster: %s", name)
-        cluster.setup(name)
-        logger.info("Cassandra cluster setup complete")
-    finally:
-        capmanager.resumecapture()
-    yield cluster
-    cluster.teardown()
+def session_cluster_fixture():
+    with cluster as c:
+        yield c
+
+
+@pytest.yield_fixture(scope='module')
+def module_cluster_fixture():
+    with cluster as c:
+        yield c
