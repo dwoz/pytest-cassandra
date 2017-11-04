@@ -3,14 +3,14 @@ from setuptools import setup
 setup(
     name = 'pytest-cassandra',
     py_modules = ['pytest_cassandra'],
-    version = '0.0.1',
+    version = '0.1.0',
     description = (
         'Cassandra CCM Test Fixtures for pytest'
     ),
     author = 'Daniel Wozniak',
     author_email = 'dan@woz.io',
     url = 'https://github.com/dwoz/pytest-cassandra',
-    download_url = 'https://github.com/dwoz/pytest-cassandra/archive/0.0.1.tar.gz',
+    download_url = 'https://github.com/dwoz/pytest-cassandra/archive/0.1.0.tar.gz',
     bugtrack_url = 'https://github.com/dwoz/pytest-cassandra/issues',
     keywords = [
         'testing', 'pytest', 'plugin', 'fixture', 'cassandra'
