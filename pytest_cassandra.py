@@ -373,7 +373,7 @@ class CCMCluster(object):
         name = tempfile.mkdtemp(suffix='-cassandra').split('/')[-1]
         if self.pluginmanager:
             capmanager = self.pluginmanager.getplugin('capturemanager')
-            capmanager.suspendcapture()
+            capmanager.suspend_global_capture()
         else:
             capmanager = None
         try:
@@ -382,7 +382,7 @@ class CCMCluster(object):
             logger.info("Cassandra cluster setup complete")
         finally:
             if capmanager:
-                capmanager.resumecapture()
+                capmanager.resume_global_capture()
         return self
 
     def __exit__(self, *args, **kwargs):
